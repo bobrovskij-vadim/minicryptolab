@@ -6,5 +6,13 @@
   {
     "text": "Hello world",
     "hash": "64ec88ca00b268e5ba1a35678a1b5316d212f4f366b2477232534a8aeca37f3c"
+  },
+  {
+    "text": "Hello chain",
+    "hash": "742e248edd30f7f61695a20f220e4f88f144e80d22f8504ebb0fbb095c9bf22f"
+  },
+  {
+    "text": "Hello chain_2",
+    "hash": "87bd90d044e6169d7c68b7e752b28a5454fd48357abc28106b997bcdfca82f68"
   }
 ]
