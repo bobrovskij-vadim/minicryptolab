@@ -28,8 +28,6 @@ pub fn load_private_key() -> Option<SigningKey> {
 
     let bytes = fs::read(PRIVATE_KEY_FILE).ok()?;
     let array: [u8; 32] = bytes.try_into().ok()?;
-
-    // ✅ Convert &[u8; 32] into GenericArray reference
     Some(SigningKey::from_bytes((&array).into()).ok()?)
 }
 

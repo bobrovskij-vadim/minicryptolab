@@ -17,7 +17,7 @@ struct Cli {
 enum Commands {
     Hash { text: String },
     History,
-    AddBlock { data: String },
+    AddBlock { data: String, difficalty: usize },
     ShowChain,
     ValidateChain,
     GenerateKeys,
@@ -30,7 +30,7 @@ fn main() {
     match cli.command {
         Commands::Hash { text } => hash::run(text),
         Commands::History => show_history(),
-        Commands::AddBlock { data } => blockchain::add_block(data),
+        Commands::AddBlock { data, difficalty } => blockchain::add_block(data, difficalty),
         Commands::ShowChain => blockchain::show_chain(),
         Commands::ValidateChain => blockchain::validate_chain(),
         Commands::GenerateKeys => keys::generate_keys(),
