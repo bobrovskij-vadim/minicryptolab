@@ -15,17 +15,35 @@ pub struct Block {
     hash: String,
     signature: Option<String>,
     public_key: Option<String>,
+    nonce: u64, // Proof of Work field
 }
 
 const CHAIN_FILE: &str = "blockchain.json";
 
 impl Block {
-    pub fn new(index: u64, data: String, prev_hash: String) -> Self {
+    // Create a new block and mine it according to difficulty
+    pub fn new(index: u64, data: String, prev_hash: String, difficulty: usize) -> Self {
         let timestamp = Utc::now().to_rfc3339();
+        let mut nonce = 0u64;
+        let target = "0".repeat(difficulty);
+        let mut hash;
 
-        // Combine fields to form a hash base string
-        let record = format!("{}{}{}{}", index, timestamp, data, prev_hash);
-        let hash = Self::calculate_hash_raw(&record);
+        // Proof of Work loop
+        loop {
+            let record = format!("{}{}{}{}{}", index, timestamp, data, prev_hash, nonce);
+            let mut hasher = Sha256::new();
+            hasher.update(record.as_bytes());
+            hash = format!("{:x}", hasher.finalize());
+
+            if nonce % 10000 == 0{
+                println!("⛏️ Mining... nonce = {}", nonce);
+            }
+
+            if hash.starts_with(&target) {
+                break;
+            }
+            nonce += 1;
+        }
 
         Block {
             index,
@@ -35,17 +53,20 @@ impl Block {
             hash,
             signature: None,
             public_key: None,
+            nonce,
         }
     }
 
+    // Calculate hash from raw string
     fn calculate_hash_raw(record: &str) -> String {
         let mut hasher = Sha256::new();
         hasher.update(record.as_bytes());
         format!("{:x}", hasher.finalize())
     }
 
+    // Recalculate hash from block fields
     fn calculate_hash(&self) -> String {
-        let record = format!("{}{}{}{}", self.index, self.timestamp, self.data, self.prev_hash);
+        let record = format!("{}{}{}{}{}", self.index, self.timestamp, self.data, self.prev_hash, self.nonce);
         Self::calculate_hash_raw(&record)
     }
 
@@ -59,7 +80,6 @@ impl Block {
     // Verify block signature
     pub fn verify_signature(&self) -> bool {
         if let (Some(sig_hex), Some(pub_hex)) = (&self.signature, &self.public_key) {
-            // Decode hex safely
             let sig_bytes = match hex::decode(sig_hex) {
                 Ok(v) => v,
                 Err(_) => return false,
@@ -69,7 +89,6 @@ impl Block {
                 Err(_) => return false,
             };
 
-            // Recreate signature and verifying key
             let signature = match Signature::from_der(&sig_bytes) {
                 Ok(v) => v,
                 Err(_) => return false,
@@ -90,7 +109,8 @@ impl Block {
     }
 }
 
-pub fn add_block(data: String) {
+// Add new block with mining difficulty
+pub fn add_block(data: String, difficulty: usize) {
     let mut chain: Vec<Block> = if Path::new(CHAIN_FILE).exists() {
         let content = fs::read_to_string(CHAIN_FILE).unwrap_or_default();
         serde_json::from_str(&content).unwrap_or_default()
@@ -104,9 +124,10 @@ pub fn add_block(data: String) {
         String::from("GENESIS")
     };
 
-    let mut block = Block::new(chain.len() as u64, data, prev_hash);
+    println!("⛏️ Mining new block with difficulty {}...", difficulty);
 
-    // Load keys and sign
+    let mut block = Block::new(chain.len() as u64, data, prev_hash, difficulty);
+
     if let (Some(priv_key), Some(pub_key)) = (keys::load_private_key(), keys::load_public_key()) {
         block.sign(&priv_key, &pub_key);
         println!("🔏 Block signed successfully!");
@@ -157,7 +178,7 @@ pub fn show_chain() {
     }
 }
 
-// Validate entire chain integrity
+// Validate entire chain integrity with nonce
 pub fn validate_chain() {
     let content = fs::read_to_string(CHAIN_FILE);
     if content.is_err() {
@@ -175,14 +196,13 @@ pub fn validate_chain() {
     for i in 0..chain.len() {
         let block = &chain[i];
 
-        // Recalculate hash and compare
+        // Recalculate hash including nonce
         let recalculated = block.calculate_hash();
         if block.hash != recalculated {
             println!("❌ Invalid hash at block {}", block.index);
             return;
         }
 
-        // Compare previous hash (skip genesis)
         if i > 0 {
             let prev = &chain[i - 1];
             if block.prev_hash != prev.hash {
